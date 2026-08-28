@@ -498,7 +498,8 @@
   // ---------- math walkthrough (all values live-computed) ----------
   (function walkthrough() {
     const nowQ = Q[Q.length - 1], agoQ = Q[Q.length - 4]; // Q-4 start is debt-ceiling-distorted; Q-3 back is the clean base
-    const spread = TTM.g - TTM.r;
+    // spread from the DISPLAYED (rounded) g and r, so "6.7 − 3.35 = x" checks out to the reader
+    const spread = parseFloat(TTM.g.toFixed(1)) - parseFloat(TTM.r.toFixed(2));
     const erosion = spread * TTM.d;
     const headlinePct = TTM.p + TTM.r * TTM.d;   // primary + net interest, % of GDP
     const vals = {
