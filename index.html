@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Quarterly tracker of US debt-erosion dynamics: nominal growth vs. average coupon vs. primary deficit, with a five-year scenario engine.">
+<meta charset="utf-8">
+<title>The Erosion Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-2: #F2F3EE;
+    --ink: #17251D;
+    --ink-2: #44544A;
+    --muted: #5B6A60;
+    --hairline: #DDE2DB;
+    --hairline-2: #E9ECE5;
+    --accent: #1F8A5D;
+    --accent-ink: #14603F;
+    --c-growth: #1F8A5D;
+    --c-deficit: #C2410C;
+    --c-rate: #2E62B8;
+    --c-gold: #A16A08;
+    --good-bg: #E3F0E8;
+    --good-ink: #14603F;
+    --bad-bg: #F8E8DE;
+    --bad-ink: #9A3407;
+    --grid: #E4E8E1;
+    --tooltip-bg: #17251D;
+    --tooltip-ink: #F2F5F0;
+    --spread-good: rgba(31,138,93,0.14);
+    --spread-bad: rgba(194,65,12,0.14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121915;
+      --surface: #18211C;
+      --surface-2: #1D2822;
+      --ink: #E6EBE4;
+      --ink-2: #B7C2BA;
+      --muted: #93A198;
+      --hairline: #2A352E;
+      --hairline-2: #232D27;
+      --accent: #2FA06C;
+      --accent-ink: #55C795;
+      --c-growth: #2FA06C;
+      --c-deficit: #E8683A;
+      --c-rate: #4F7FD9;
+      --c-gold: #B4841F;
+      --good-bg: #1B3527;
+      --good-ink: #6FCB9F;
+      --bad-bg: #3A241A;
+      --bad-ink: #F09468;
+      --grid: #26302A;
+      --tooltip-bg: #E6EBE4;
+      --tooltip-ink: #17251D;
+      --spread-good: rgba(47,160,108,0.18);
+      --spread-bad: rgba(232,104,58,0.18);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #121915;
+    --surface: #18211C;
+    --surface-2: #1D2822;
+    --ink: #E6EBE4;
+    --ink-2: #B7C2BA;
+    --muted: #93A198;
+    --hairline: #2A352E;
+    --hairline-2: #232D27;
+    --accent: #2FA06C;
+    --accent-ink: #55C795;
+    --c-growth: #2FA06C;
+    --c-deficit: #E8683A;
+    --c-rate: #4F7FD9;
+    --c-gold: #B4841F;
+    --good-bg: #1B3527;
+    --good-ink: #6FCB9F;
+    --bad-bg: #3A241A;
+    --bad-ink: #F09468;
+    --grid: #26302A;
+    --tooltip-bg: #E6EBE4;
+    --tooltip-ink: #17251D;
+    --spread-good: rgba(47,160,108,0.18);
+    --spread-bad: rgba(232,104,58,0.18);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Public Sans", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0 20px 80px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  .mono { font-family: "IBM Plex Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- header ---------- */
+  header { padding: 44px 0 26px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--accent-ink); margin-bottom: 10px;
+  }
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 500; font-size: clamp(34px, 5vw, 52px);
+    margin: 0 0 10px; line-height: 1.05; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .subtitle { max-width: 640px; color: var(--ink-2); margin: 0; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  .vintage { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.7; }
+
+  .verdict {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    background: var(--good-bg); color: var(--good-ink); margin-top: 14px;
+  }
+  .verdict .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+  /* ---------- equation strip ---------- */
+  .equation {
+    display: flex; align-items: stretch; gap: 0; margin: 34px 0 10px;
+    overflow-x: auto; padding-bottom: 6px;
+  }
+  .eq-term {
+    flex: 1 1 0; min-width: 128px; background: var(--surface);
+    border: 1px solid var(--hairline); border-radius: 6px; padding: 14px 16px 12px;
+  }
+  .eq-op {
+    flex: 0 0 auto; display: flex; align-items: center; padding: 0 10px;
+    font-family: "Newsreader", Georgia, serif; font-size: 30px; color: var(--muted);
+  }
+  .eq-label { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .eq-value { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .eq-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .eq-term.result { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+  .eq-term.result .eq-label { color: var(--ground); opacity: .65; }
+  .eq-term.result .eq-sub { color: var(--ground); opacity: .65; }
+  .eq-note { font-size: 12.5px; color: var(--muted); margin: 6px 2px 0; max-width: 760px; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 52px; }
+  h2 {
+    font-family: "Newsreader", Georgia, serif; font-weight: 500; font-size: 27px;
+    margin: 0 0 4px; letter-spacing: -0.005em;
+  }
+  .section-sub { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; max-width: 700px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px;
+    padding: 20px 22px 16px;
+  }
+  .chart-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .sw.line { height: 3px; border-radius: 2px; width: 16px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  svg { display: block; width: 100%; height: auto; }
+  svg text { font-family: "IBM Plex Mono", Consolas, monospace; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--tooltip-bg); color: var(--tooltip-ink);
+    border-radius: 6px; padding: 8px 11px; font-size: 12px; line-height: 1.5;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25); opacity: 0; transition: opacity .1s;
+    max-width: 260px;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .tt-head { font-weight: 700; margin-bottom: 3px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; font-family: "IBM Plex Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- ledger table ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 13px; }
+  thead th {
+    text-align: right; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; padding: 12px 14px 8px; border-bottom: 2px solid var(--ink);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  tbody td {
+    padding: 9px 14px; text-align: right; border-bottom: 1px solid var(--hairline-2);
+    font-family: "IBM Plex Mono", Consolas, monospace; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  tbody td:first-child { text-align: left; font-family: "Public Sans", sans-serif; font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.ttm td { border-top: 2px solid var(--ink); background: var(--surface-2); font-weight: 600; }
+  .chip {
+    display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    font-family: "Public Sans", sans-serif;
+  }
+  .chip.good { background: var(--good-bg); color: var(--good-ink); }
+  .chip.bad { background: var(--bad-bg); color: var(--bad-ink); }
+  .pos { color: var(--bad-ink); } .neg { color: var(--good-ink); }
+  .tbl-note { font-size: 12px; color: var(--muted); margin-top: 10px; max-width: 780px; }
+
+  /* ---------- scenario lab ---------- */
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .preset {
+    border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-2);
+    border-radius: 999px; padding: 7px 15px; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: all .12s;
+  }
+  .preset:hover { border-color: var(--accent); color: var(--ink); }
+  .preset.active { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .preset:focus-visible, .slider:focus-visible, .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .lab { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .lab { grid-template-columns: 1fr; } }
+  .controls { display: flex; flex-direction: column; gap: 16px; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; margin-bottom: 5px; }
+  .ctl label .val { font-family: "IBM Plex Mono", Consolas, monospace; color: var(--accent-ink); }
+  .ctl .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .slider { width: 100%; accent-color: var(--accent); }
+
+  .outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  @media (max-width: 640px) { .outcomes { grid-template-columns: 1fr; } }
+  .outcome { background: var(--surface-2); border-radius: 6px; padding: 12px 14px; }
+  .outcome .o-label { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+  .outcome .o-value { font-size: 22px; font-weight: 600; margin-top: 3px; }
+  .outcome .o-sub { font-size: 11.5px; color: var(--muted); }
+
+  /* ---------- methodology ---------- */
+  .method { font-size: 13px; color: var(--ink-2); columns: 2; column-gap: 40px; max-width: 100%; }
+  @media (max-width: 760px) { .method { columns: 1; } }
+  .method p { margin: 0 0 12px; break-inside: avoid; }
+  .method strong { color: var(--ink); }
+  .method a { color: var(--accent-ink); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--hairline); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  @media (prefers-reduced-motion: reduce) { .tooltip { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Fiscal Dominance Monitor &middot; Updated Quarterly</div>
+    <div class="header-row">
+      <div>
+        <h1>The Erosion Ledger</h1>
+        <p class="subtitle">Is nominal growth eroding the federal debt faster than the primary deficit rebuilds it?
+        The whole question is one identity: <span class="mono">&Delta;(debt/GDP) &asymp; (r &minus; g) &times; d + primary deficit</span>.
+        This ledger tracks each term, quarterly.</p>
+        <div class="verdict" id="verdict"><span class="dot"></span><span id="verdictText"></span></div>
+      </div>
+      <div class="vintage">
+        Data through <strong>2026 Q2</strong> (BEA 2nd estimate, Aug 26 2026)<br>
+        Debt &amp; rates through <strong>Jul 2026</strong> (Treasury Fiscal Data)<br>
+        Next GDP release: <strong>Sep 30, 2026</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- equation strip -->
+  <div class="equation" id="equation"></div>
+  <p class="eq-note">Trailing-four-quarter values. <strong>g</strong> is nominal (current-dollar) GDP growth &mdash; the identity runs on nominal, so inflation counts.
+  A negative net drift means the debt ratio is falling: erosion is outrunning the deficit.</p>
+
+  <!-- the two forces -->
+  <section>
+    <h2>The Two Forces</h2>
+    <p class="section-sub">Each quarter, growth-minus-interest erodes the ratio (green, shown as the erosion rate) while the primary deficit rebuilds it (rust).
+    The diamond is the net: below zero, the debt ratio is shrinking.</p>
+    <div class="card">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--c-growth)"></span>Erosion rate (g &minus; r) &times; d</span>
+        <span><span class="sw" style="background:var(--c-deficit)"></span>Primary deficit</span>
+        <span><span class="sw line" style="background:var(--ink)"></span>Net drift of debt/GDP</span>
+      </div>
+      <div id="chartForces"></div>
+    </div>
+  </section>
+
+  <!-- g vs r -->
+  <section>
+    <div class="grid-2">
+      <div class="card">
+        <div class="chart-title">Growth vs. the Coupon</div>
+        <div class="chart-sub">Nominal GDP growth (SAAR) against the average interest rate on the debt. The shaded gap is the erosion engine.</div>
+        <div class="legend">
+          <span><span class="sw line" style="background:var(--c-growth)"></span>Nominal GDP growth</span>
+          <span><span class="sw line" style="background:var(--c-rate)"></span>Avg. rate on Treasury debt</span>
+        </div>
+        <div id="chartGR"></div>
+      </div>
+      <div class="card">
+        <div class="chart-title">Debt Held by the Public, % of GDP</div>
+        <div class="chart-sub">End of quarter. Flat for a year despite ~$1.8T of headline deficits &mdash; the denominator is doing the work.</div>
+        <div class="legend">
+          <span><span class="sw line" style="background:var(--c-gold)"></span>Debt/GDP (held by public)</span>
+        </div>
+        <div id="chartRatio"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ledger table -->
+  <section>
+    <h2>The Ledger</h2>
+    <p class="section-sub">Eight quarters, every term of the identity. All rates annualized, in percent; drift in points of debt/GDP per year.</p>
+    <div class="table-scroll">
+      <table id="ledger">
+        <thead>
+          <tr>
+            <th>Quarter</th><th>Nominal g</th><th>Real GDP</th><th>Avg rate r</th>
+            <th>Debt (pub., $T)</th><th>Debt/GDP</th><th>Erosion</th><th>Primary def.</th><th>Net drift</th><th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="tbl-note"><strong>Note on 2025 H1:</strong> the debt ceiling froze borrowing through mid-2025, flattering Q1&ndash;Q2 ratios; Q3 2025's jump is Treasury rebuilding its cash balance after resolution &mdash; financing noise, not deficit. The equation columns are the cleaner signal.
+    Primary deficit is estimated from Treasury Monthly Statements (headline deficit less net interest), mapped to fiscal years.</p>
+  </section>
+
+  <!-- scenario lab -->
+  <section>
+    <h2>Five-Year Scenarios</h2>
+    <p class="section-sub">Project debt/GDP through 2031. The average coupon reprices gradually &mdash; each year, the share of debt that rolls over refinances at the market rate. Pick a preset or set the levers yourself.</p>
+    <div class="presets" id="presets"></div>
+    <div class="lab">
+      <div class="card controls" id="controls"></div>
+      <div class="card">
+        <div class="chart-title">Debt/GDP, actual and projected</div>
+        <div class="chart-sub" id="scenarioSub"></div>
+        <div class="legend">
+          <span><span class="sw line" style="background:var(--c-gold)"></span>Actual</span>
+          <span><span class="sw line" style="background:var(--c-rate)"></span>Projected</span>
+        </div>
+        <div id="chartForecast"></div>
+        <div class="outcomes" id="outcomes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- methodology -->
+  <section>
+    <h2>Method &amp; Sources</h2>
+    <div class="method">
+      <p><strong>The identity.</strong> With d = debt/GDP, r = average nominal interest rate on the stock, g = nominal GDP growth, and p = primary deficit (% of GDP): d&prime; = d &times; (1+r)/(1+g) + p. The change is approximately (r &minus; g) &times; d + p. When g exceeds r, the existing stock shrinks relative to the economy; the primary deficit is the new borrowing piled on top. Interest is excluded from p because it already lives inside r &mdash; adding the headline deficit would double-count it.</p>
+      <p><strong>Debt measure.</strong> Debt held by the public (Treasury &ldquo;Debt to the Penny&rdquo;), not gross debt &mdash; intragovernmental holdings are the government owing itself. End-of-quarter level over that quarter's nominal GDP (SAAR).</p>
+      <p><strong>Nominal GDP.</strong> BEA quarterly releases, current-dollar GDP, SAAR percent change. 2026 Q2 = 8.0% (2nd est.), Q1 = 6.1%. Levels chained back from the Q2 2026 level of $32.49T; small differences vs. vintage levels reflect annual revisions.</p>
+      <p><strong>Average rate.</strong> Treasury Fiscal Data, &ldquo;Average Interest Rates on U.S. Treasury Securities,&rdquo; total interest-bearing debt, quarter-end month. It moves slowly: the stock reprices only as old paper rolls, which is exactly why issuance strategy matters.</p>
+      <p><strong>Primary deficit.</strong> Headline deficit less net interest, from Treasury Monthly Statements and CRFB tallies: FY24 &asymp; $0.95T (3.3% of GDP), FY25 &asymp; 2.7%, FY26 running &asymp; 3.0&ndash;3.1% (10-month deficit $1.8T, gross interest $1.17T). Quarterly values are the fiscal-year rate, an estimate by construction.</p>
+      <p><strong>Scenario engine.</strong> Annual steps from 2026 Q2. Coupon path: r&prime; = r + roll &times; (market &minus; r). Nominal g = real + inflation. Bondholder real return = average coupon minus inflation &mdash; the erosion machine's fuel is exactly that spread when it's negative.</p>
+      <p><strong>Sources.</strong> <a href="https://www.bea.gov/data/gdp/gross-domestic-product">BEA GDP releases</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/average-interest-rates-treasury-securities/">Avg. interest rates</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/">Debt to the Penny</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/monthly-treasury-statement/">Monthly Treasury Statement</a> &middot; <a href="https://www.crfb.org/">CRFB</a></p>
+    </div>
+  </section>
+
+  <footer>
+    <span>The Erosion Ledger &middot; refreshed each BEA quarterly release</span>
+    <span>Not investment advice. An identity, not a forecast.</span>
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- data (updated each quarterly refresh) ----------
+  // g: nominal GDP %chg SAAR · real: real GDP %chg SAAR · r: avg rate on total
+  // interest-bearing debt, quarter-end month · debt: held by public, $T EOQ ·
+  // gdp: nominal SAAR $T · p: primary deficit % of GDP (FY estimate)
+  const Q = [
+    { q: "2024 Q3", g: 5.0, real: 3.1,  r: 3.32, debt: 28.307, gdp: 29.496, p: 3.3 },
+    { q: "2024 Q4", g: 4.8, real: 2.3,  r: 3.28, debt: 28.837, gdp: 29.844, p: 3.3 },
+    { q: "2025 Q1", g: 3.2, real: -0.5, r: 3.28, debt: 28.910, gdp: 30.080, p: 2.7 },
+    { q: "2025 Q2", g: 5.0, real: 3.8,  r: 3.30, debt: 28.953, gdp: 30.449, p: 2.7 },
+    { q: "2025 Q3", g: 8.2, real: 4.4,  r: 3.36, debt: 30.278, gdp: 31.055, p: 2.7 },
+    { q: "2025 Q4", g: 4.5, real: 0.7,  r: 3.32, debt: 30.847, gdp: 31.399, p: 2.7 },
+    { q: "2026 Q1", g: 6.1, real: 2.1,  r: 3.33, debt: 31.431, gdp: 31.867, p: 3.0 },
+    { q: "2026 Q2", g: 8.0, real: 1.5,  r: 3.41, debt: 31.681, gdp: 32.486, p: 3.1 },
+  ];
+  Q.forEach(d => {
+    d.ratio = 100 * d.debt / d.gdp;
+    d.erosion = (d.g - d.r) * (d.ratio / 100);   // pts of debt/GDP per yr, favorable
+    d.net = d.p - d.erosion;                      // + = ratio rising
+  });
+  const last4 = Q.slice(-4);
+  const avg = (a, k) => a.reduce((s, d) => s + d[k], 0) / a.length;
+  const TTM = {
+    g: avg(last4, "g"), r: avg(last4, "r"), p: avg(last4, "p"),
+    d: avg(last4, "ratio") / 100, erosion: avg(last4, "erosion"), net: avg(last4, "net"),
+  };
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const fmt = (v, dp = 1) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(dp);
+  const fmtS = (v, dp = 1) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(dp);
+
+  // ---------- verdict + equation ----------
+  const verdictEl = document.getElementById("verdict");
+  const vt = document.getElementById("verdictText");
+  if (TTM.net < 0) {
+    vt.textContent = "Erosion winning · " + fmtS(TTM.net) + " pts/yr (TTM)";
+  } else {
+    verdictEl.style.background = css("--bad-bg"); verdictEl.style.color = css("--bad-ink");
+    vt.textContent = "Deficit winning · " + fmtS(TTM.net) + " pts/yr (TTM)";
+  }
+
+  const eq = document.getElementById("equation");
+  const terms = [
+    { label: "Nominal growth g", value: fmt(TTM.g) + "%", sub: "TTM avg, SAAR", color: "var(--c-growth)" },
+    { op: "−" },
+    { label: "Avg coupon r", value: fmt(TTM.r, 2) + "%", sub: "on the whole stock", color: "var(--c-rate)" },
+    { op: "×" },
+    { label: "Debt ratio d", value: fmt(TTM.d * 100, 1) + "%", sub: "held by public / GDP", color: "var(--c-gold)" },
+    { op: "−" },
+    { label: "Primary deficit p", value: fmt(TTM.p) + "%", sub: "of GDP, ex-interest", color: "var(--c-deficit)" },
+    { op: "=" },
+    { label: "Net drift", value: fmtS(-TTM.net === 0 ? 0 : TTM.net) + " pts/yr", sub: TTM.net < 0 ? "debt/GDP falling" : "debt/GDP rising", result: true },
+  ];
+  eq.innerHTML = terms.map(t => t.op
+    ? '<div class="eq-op">' + t.op + "</div>"
+    : '<div class="eq-term' + (t.result ? " result" : "") + '"><div class="eq-label">' + t.label +
+      '</div><div class="eq-value mono"' + (t.color && !t.result ? ' style="color:' + t.color + '"' : "") + ">" +
+      t.value + '</div><div class="eq-sub">' + t.sub + "</div></div>").join("");
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById("tooltip");
+  function showTip(html, evt) {
+    tip.innerHTML = html; tip.classList.add("show");
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = evt.clientX + pad, y = evt.clientY - h - pad;
+    if (x + w > innerWidth - 8) x = evt.clientX - w - pad;
+    if (y < 8) y = evt.clientY + pad;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  const hideTip = () => tip.classList.remove("show");
+
+  // ---------- svg helpers ----------
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function frame(mount, W, H) {
+    const svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img" });
+    document.getElementById(mount).appendChild(svg);
+    return svg;
+  }
+  function yGrid(svg, scale, ticks, x0, x1, dp) {
+    ticks.forEach(t => {
+      el("line", { x1: x0, x2: x1, y1: scale(t), y2: scale(t), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+      el("text", { x: x0 - 8, y: scale(t) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, svg)
+        .textContent = fmt(t, dp === undefined ? 0 : dp);
+    });
+  }
+
+  // ---------- chart: the two forces ----------
+  (function forces() {
+    const W = 1020, H = 300, M = { t: 14, r: 12, b: 28, l: 44 };
+    const svg = frame("chartForces", W, H);
+    const lo = -3.2, hi = 5.4;
+    const y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+    const bandW = (W - M.l - M.r) / Q.length;
+    yGrid(svg, y, [-2, 0, 2, 4], M.l, W - M.r);
+    el("line", { x1: M.l, x2: W - M.r, y1: y(0), y2: y(0), stroke: "var(--ink-2)", "stroke-width": 1.25 }, svg);
+
+    const barW = 26, gap = 4;
+    Q.forEach((d, i) => {
+      const cx = M.l + bandW * (i + 0.5);
+      const zones = el("g", {}, svg);
+      // erosion bar (drawn downward-positive as favorable, still plotted on real axis)
+      [[d.erosion, "var(--c-growth)", cx - barW - gap / 2], [d.p, "var(--c-deficit)", cx + gap / 2]].forEach(([v, color, bx]) => {
+        const y0 = y(Math.max(0, v)), h = Math.abs(y(v) - y(0));
+        el("rect", { x: bx, y: y0, width: barW, height: Math.max(h, 1), rx: 3, fill: color }, zones);
+      });
+      // net diamond
+      const dy = y(d.net);
+      el("path", { d: "M " + cx + " " + (dy - 6) + " L " + (cx + 6) + " " + dy + " L " + cx + " " + (dy + 6) + " L " + (cx - 6) + " " + dy + " Z",
+        fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 }, zones);
+      el("text", { x: cx, y: H - 9, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, svg)
+        .textContent = d.q.replace("20", "’").replace(" ", " ");
+      // hover zone
+      const hz = el("rect", { x: M.l + bandW * i, y: M.t, width: bandW, height: H - M.t - M.b, fill: "transparent" }, svg);
+      hz.addEventListener("mousemove", e => showTip(
+        '<div class="tt-head">' + d.q + "</div>" +
+        '<div class="tt-row"><span>Erosion</span><span>' + fmtS(-d.erosion) + " pts</span></div>" +
+        '<div class="tt-row"><span>Primary deficit</span><span>+' + fmt(d.p) + " pts</span></div>" +
+        '<div class="tt-row"><span>Net drift</span><span>' + fmtS(d.net) + " pts/yr</span></div>", e));
+      hz.addEventListener("mouseleave", hideTip);
+    });
+    // net connecting line
+    el("polyline", {
+      points: Q.map((d, i) => (M.l + bandW * (i + 0.5)) + "," + y(d.net)).join(" "),
+      fill: "none", stroke: "var(--ink)", "stroke-width": 1.5, "stroke-dasharray": "1 4",
+      "stroke-linecap": "round", "pointer-events": "none",
+    }, svg);
+  })();
+
+  // ---------- chart: g vs r ----------
+  (function gr() {
+    const W = 500, H = 280, M = { t: 14, r: 12, b: 28, l: 40 };
+    const svg = frame("chartGR", W, H);
+    const lo = 0, hi = 9;
+    const x = i => M.l + i / (Q.length - 1) * (W - M.l - M.r);
+    const y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+    yGrid(svg, y, [0, 2, 4, 6, 8], M.l, W - M.r);
+    // spread fill
+    let up = "", down = "";
+    Q.forEach((d, i) => { up += (i ? " L " : "M ") + x(i) + " " + y(d.g); });
+    for (let i = Q.length - 1; i >= 0; i--) down += " L " + x(i) + " " + y(Q[i].r);
+    el("path", { d: up + down + " Z", fill: "var(--spread-good)" }, svg);
+    // lines
+    [["g", "var(--c-growth)"], ["r", "var(--c-rate)"]].forEach(([k, color]) => {
+      el("polyline", { points: Q.map((d, i) => x(i) + "," + y(d[k])).join(" "),
+        fill: "none", stroke: color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      const dl = Q[Q.length - 1];
+      el("circle", { cx: x(Q.length - 1), cy: y(dl[k]), r: 3.5, fill: color }, svg);
+    });
+    el("text", { x: x(7) - 6, y: y(Q[7].g) - 9, "text-anchor": "end", "font-size": 11, "font-weight": 600, fill: "var(--c-growth)" }, svg).textContent = "g " + fmt(Q[7].g) + "%";
+    el("text", { x: x(7) - 6, y: y(Q[7].r) + 16, "text-anchor": "end", "font-size": 11, "font-weight": 600, fill: "var(--c-rate)" }, svg).textContent = "r " + fmt(Q[7].r, 2) + "%";
+    Q.forEach((d, i) => {
+      if (i % 2 === 0) el("text", { x: x(i), y: H - 9, "text-anchor": "middle", "font-size": 10.5, fill: "var(--muted)" }, svg).textContent = d.q.replace("20", "’");
+    });
+    // crosshair hover
+    const guide = el("line", { y1: M.t, y2: H - M.b, stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0 }, svg);
+    const hz = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
+    hz.addEventListener("mousemove", e => {
+      const r = svg.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width * W;
+      const i = Math.max(0, Math.min(Q.length - 1, Math.round((px - M.l) / (W - M.l - M.r) * (Q.length - 1))));
+      guide.setAttribute("x1", x(i)); guide.setAttribute("x2", x(i)); guide.setAttribute("opacity", 1);
+      const d = Q[i];
+      showTip('<div class="tt-head">' + d.q + "</div>" +
+        '<div class="tt-row"><span>Nominal g</span><span>' + fmt(d.g) + "%</span></div>" +
+        '<div class="tt-row"><span>Real GDP</span><span>' + fmtS(d.real) + "%</span></div>" +
+        '<div class="tt-row"><span>Avg rate r</span><span>' + fmt(d.r, 2) + "%</span></div>" +
+        '<div class="tt-row"><span>Spread</span><span>' + fmtS(d.g - d.r) + " pts</span></div>", e);
+    });
+    hz.addEventListener("mouseleave", () => { hideTip(); guide.setAttribute("opacity", 0); });
+  })();
+
+  // ---------- chart: debt ratio ----------
+  (function ratio() {
+    const W = 500, H = 280, M = { t: 14, r: 12, b: 28, l: 40 };
+    const svg = frame("chartRatio", W, H);
+    const lo = 93, hi = 100;
+    const x = i => M.l + i / (Q.length - 1) * (W - M.l - M.r);
+    const y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+    yGrid(svg, y, [94, 96, 98, 100], M.l, W - M.r);
+    const pts = Q.map((d, i) => x(i) + "," + y(d.ratio)).join(" ");
+    el("polyline", { points: pts + " " + x(Q.length - 1) + "," + (H - M.b) + " " + x(0) + "," + (H - M.b),
+      fill: "var(--spread-good)", stroke: "none", opacity: 0.6 }, svg);
+    el("polyline", { points: pts, fill: "none", stroke: "var(--c-gold)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    Q.forEach((d, i) => {
+      el("circle", { cx: x(i), cy: y(d.ratio), r: i === Q.length - 1 ? 4 : 2.5, fill: "var(--c-gold)",
+        stroke: "var(--surface)", "stroke-width": 1.5 }, svg);
+      if (i % 2 === 0) el("text", { x: x(i), y: H - 9, "text-anchor": "middle", "font-size": 10.5, fill: "var(--muted)" }, svg).textContent = d.q.replace("20", "’");
+    });
+    el("text", { x: x(7) - 8, y: y(Q[7].ratio) - 10, "text-anchor": "end", "font-size": 11, "font-weight": 600, fill: "var(--c-gold)" }, svg)
+      .textContent = fmt(Q[7].ratio) + "%";
+    const hz = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
+    hz.addEventListener("mousemove", e => {
+      const r = svg.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width * W;
+      const i = Math.max(0, Math.min(Q.length - 1, Math.round((px - M.l) / (W - M.l - M.r) * (Q.length - 1))));
+      const d = Q[i];
+      showTip('<div class="tt-head">' + d.q + "</div>" +
+        '<div class="tt-row"><span>Debt/GDP</span><span>' + fmt(d.ratio) + "%</span></div>" +
+        '<div class="tt-row"><span>Debt (public)</span><span>$' + d.debt.toFixed(2) + "T</span></div>" +
+        '<div class="tt-row"><span>Nominal GDP</span><span>$' + d.gdp.toFixed(2) + "T</span></div>", e);
+    });
+    hz.addEventListener("mouseleave", hideTip);
+  })();
+
+  // ---------- ledger table ----------
+  (function table() {
+    const tb = document.querySelector("#ledger tbody");
+    const row = d =>
+      "<tr><td>" + d.q + "</td>" +
+      "<td>" + fmt(d.g) + "%</td>" +
+      "<td>" + fmtS(d.real) + "%</td>" +
+      "<td>" + fmt(d.r, 2) + "%</td>" +
+      "<td>" + d.debt.toFixed(2) + "</td>" +
+      "<td>" + fmt(d.ratio) + "%</td>" +
+      '<td class="neg">' + fmtS(-d.erosion) + "</td>" +
+      '<td class="pos">+' + fmt(d.p) + "</td>" +
+      "<td><strong>" + fmtS(d.net) + "</strong></td>" +
+      '<td><span class="chip ' + (d.net < 0 ? "good\">Eroding" : "bad\">Accreting") + "</span></td></tr>";
+    tb.innerHTML = Q.map(row).join("") +
+      '<tr class="ttm"><td>TTM</td><td>' + fmt(TTM.g) + "%</td><td>—</td><td>" + fmt(TTM.r, 2) + "%</td><td>" +
+      Q[7].debt.toFixed(2) + "</td><td>" + fmt(TTM.d * 100) + "%</td>" +
+      '<td class="neg">' + fmtS(-TTM.erosion) + '</td><td class="pos">+' + fmt(TTM.p) + "</td><td><strong>" + fmtS(TTM.net) +
+      '</strong></td><td><span class="chip ' + (TTM.net < 0 ? "good\">Eroding" : "bad\">Accreting") + "</span></td></tr>";
+  })();
+
+  // ---------- scenario lab ----------
+  const PRESETS = [
+    { name: "Current path", desc: "Inflation-led nominal growth; the twist holds the curve.", real: 1.8, infl: 5.0, mkt: 4.2, prim: 3.0, roll: 25 },
+    { name: "AI boom + repression", desc: "The thesis: productivity g, captive bid pins r, growth lifts revenue.", real: 3.5, infl: 3.0, mkt: 3.5, prim: 2.0, roll: 25 },
+    { name: "Bond revolt", desc: "The cap breaks: term premium reprices the roll at 6.5%.", real: 1.5, infl: 4.5, mkt: 6.5, prim: 3.5, roll: 30 },
+    { name: "Productivity miracle", desc: "AI shows up in real GDP; inflation normalizes on its own.", real: 4.5, infl: 2.0, mkt: 3.8, prim: 1.5, roll: 25 },
+    { name: "Recession", desc: "The boom busts: growth stalls, automatic stabilizers blow out p.", real: -1.0, infl: 1.5, mkt: 3.0, prim: 5.5, roll: 25 },
+  ];
+  const CTLS = [
+    { key: "real", label: "Real GDP growth", min: -2, max: 6, step: 0.1, unit: "%/yr", hint: "The productivity bet. 2024–2026 actual: −0.5% to 4.4%." },
+    { key: "infl", label: "Inflation (GDP deflator)", min: 0, max: 8, step: 0.1, unit: "%/yr", hint: "Q2 2026 ran ~6.4%. Nominal g = real + inflation." },
+    { key: "mkt", label: "Market rate on new issuance", min: 2, max: 8, step: 0.1, unit: "%", hint: "What the roll refinances at. The repression lever." },
+    { key: "prim", label: "Primary deficit", min: -1, max: 6, step: 0.1, unit: "% GDP", hint: "Ex-interest. FY26 running ~3.1%." },
+    { key: "roll", label: "Stock rolling over per year", min: 10, max: 40, step: 1, unit: "%", hint: "How fast the average coupon reprices to market." },
+  ];
+  const state = { ...PRESETS[0] };
+  let activePreset = 0;
+
+  const controlsEl = document.getElementById("controls");
+  controlsEl.innerHTML = CTLS.map(c =>
+    '<div class="ctl"><label for="sl-' + c.key + '">' + c.label +
+    ' <span class="val" id="v-' + c.key + '"></span></label>' +
+    '<input class="slider" type="range" id="sl-' + c.key + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" aria-label="' + c.label + '">' +
+    '<div class="hint">' + c.hint + "</div></div>").join("");
+
+  const presetsEl = document.getElementById("presets");
+  presetsEl.innerHTML = PRESETS.map((p, i) =>
+    '<button class="preset" type="button" data-i="' + i + '">' + p.name + "</button>").join("");
+
+  function project(s) {
+    let r = TTM.r, d = Q[7].ratio / 100;
+    const g = s.real + s.infl;
+    const path = [{ year: 2026.5, ratio: d * 100, r }];
+    for (let y = 1; y <= 5; y++) {
+      r = r + (s.roll / 100) * (s.mkt - r);
+      d = d * (1 + r / 100) / (1 + g / 100) + s.prim / 100;
+      path.push({ year: 2026.5 + y, ratio: d * 100, r });
+    }
+    return path;
+  }
+
+  function render() {
+    CTLS.forEach(c => {
+      document.getElementById("sl-" + c.key).value = state[c.key];
+      document.getElementById("v-" + c.key).textContent = fmt(state[c.key], c.step < 1 ? 1 : 0) + " " + c.unit;
+    });
+    document.querySelectorAll(".preset").forEach((b, i) => b.classList.toggle("active", i === activePreset));
+    document.getElementById("scenarioSub").textContent = activePreset >= 0
+      ? PRESETS[activePreset].name + " — " + PRESETS[activePreset].desc
+      : "Custom scenario.";
+
+    const path = project(state);
+    const end = path[path.length - 1];
+    const drift = (end.ratio - path[0].ratio) / 5;
+    const realRet = (path.reduce((s, p) => s + p.r, 0) / path.length) - state.infl;
+    const cumLoss = (Math.pow(1 + realRet / 100, 5) - 1) * 100;
+
+    const oc = document.getElementById("outcomes");
+    oc.innerHTML =
+      '<div class="outcome"><div class="o-label">Debt/GDP, mid-2031</div><div class="o-value mono" style="color:' +
+      (end.ratio <= path[0].ratio ? "var(--good-ink)" : "var(--bad-ink)") + '">' + fmt(end.ratio) + "%</div>" +
+      '<div class="o-sub">from ' + fmt(path[0].ratio) + "% today</div></div>" +
+      '<div class="outcome"><div class="o-label">Avg drift</div><div class="o-value mono">' + fmtS(drift) + '</div>' +
+      '<div class="o-sub">pts of GDP per year</div></div>' +
+      '<div class="outcome"><div class="o-label">Bondholder real return</div><div class="o-value mono" style="color:' +
+      (realRet < 0 ? "var(--good-ink)" : "var(--bad-ink)") + '">' + fmtS(realRet) + "%/yr</div>" +
+      '<div class="o-sub">' + (realRet < 0 ? fmt(cumLoss) + "% real loss over 5 yrs — the stealth tax" : "creditors keep pace — no stealth tax") + "</div></div>";
+
+    drawForecast(path);
+  }
+
+  let fcSvg = null;
+  function drawForecast(path) {
+    const mountEl = document.getElementById("chartForecast");
+    mountEl.innerHTML = "";
+    const W = 640, H = 300, M = { t: 16, r: 16, b: 28, l: 44 };
+    const svg = frame("chartForecast", W, H);
+    const hist = Q.map((d, i) => ({ year: 2024.5 + i * 0.25, ratio: d.ratio, q: d.q }));
+    const all = hist.map(h => h.ratio).concat(path.map(p => p.ratio));
+    const lo = Math.min(80, Math.floor(Math.min(...all) / 5) * 5);
+    const hi = Math.max(105, Math.ceil(Math.max(...all) / 5) * 5);
+    const x = yr => M.l + (yr - 2024.5) / (2031.5 - 2024.5) * (W - M.l - M.r);
+    const y = v => M.t + (hi - v) / (hi - lo) * (H - M.t - M.b);
+    const ticks = [];
+    for (let t = lo; t <= hi; t += 5) ticks.push(t);
+    yGrid(svg, y, ticks, M.l, W - M.r);
+    el("line", { x1: x(2026.5), x2: x(2026.5), y1: M.t, y2: H - M.b, stroke: "var(--hairline)", "stroke-width": 1, "stroke-dasharray": "4 4" }, svg);
+    el("text", { x: x(2026.5) + 5, y: M.t + 10, "font-size": 10.5, fill: "var(--muted)" }, svg).textContent = "today";
+    // 100% reference
+    if (lo < 100 && hi > 100) {
+      el("line", { x1: M.l, x2: W - M.r, y1: y(100), y2: y(100), stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "2 5" }, svg);
+    }
+    el("polyline", { points: hist.map(h => x(h.year) + "," + y(h.ratio)).join(" "),
+      fill: "none", stroke: "var(--c-gold)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    el("polyline", { points: path.map(p => x(p.year) + "," + y(p.ratio)).join(" "),
+      fill: "none", stroke: "var(--c-rate)", "stroke-width": 2.25, "stroke-dasharray": "6 4", "stroke-linejoin": "round" }, svg);
+    path.forEach((p, i) => {
+      el("circle", { cx: x(p.year), cy: y(p.ratio), r: i === path.length - 1 ? 4.5 : 3, fill: "var(--c-rate)",
+        stroke: "var(--surface)", "stroke-width": 1.5 }, svg);
+    });
+    const endP = path[path.length - 1];
+    el("text", { x: x(endP.year) - 8, y: y(endP.ratio) + (endP.ratio > path[0].ratio ? -10 : 18),
+      "text-anchor": "end", "font-size": 12, "font-weight": 600, fill: "var(--c-rate)" }, svg)
+      .textContent = fmt(endP.ratio) + "%";
+    for (let yr = 2025; yr <= 2031; yr++) {
+      el("text", { x: x(yr), y: H - 9, "text-anchor": "middle", "font-size": 10.5, fill: "var(--muted)" }, svg).textContent = "’" + String(yr).slice(2);
+    }
+    const hz = el("rect", { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: "transparent" }, svg);
+    hz.addEventListener("mousemove", e => {
+      const rc = svg.getBoundingClientRect();
+      const yr = 2024.5 + (((e.clientX - rc.left) / rc.width * W) - M.l) / (W - M.l - M.r) * 7;
+      const pool = hist.map(h => ({ ...h, kind: "actual" })).concat(path.slice(1).map(p => ({ ...p, kind: "projected" })));
+      let best = pool[0];
+      pool.forEach(p => { if (Math.abs(p.year - yr) < Math.abs(best.year - yr)) best = p; });
+      showTip('<div class="tt-head">' + (best.q || ("Mid-" + Math.round(best.year))) + " · " + best.kind + "</div>" +
+        '<div class="tt-row"><span>Debt/GDP</span><span>' + fmt(best.ratio) + "%</span></div>" +
+        (best.r !== undefined ? '<div class="tt-row"><span>Avg coupon</span><span>' + fmt(best.r, 2) + "%</span></div>" : ""), e);
+    });
+    hz.addEventListener("mouseleave", hideTip);
+  }
+
+  CTLS.forEach(c => {
+    document.getElementById("sl-" + c.key).addEventListener("input", e => {
+      state[c.key] = parseFloat(e.target.value);
+      activePreset = -1;
+      render();
+    });
+  });
+  presetsEl.addEventListener("click", e => {
+    const b = e.target.closest(".preset");
+    if (!b) return;
+    activePreset = parseInt(b.dataset.i, 10);
+    Object.assign(state, PRESETS[activePreset]);
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
