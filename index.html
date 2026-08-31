@@ -399,7 +399,7 @@
   <!-- scenario lab -->
   <section>
     <h2>Five-Year Scenarios</h2>
-    <p class="section-sub">Project debt/GDP through 2031. The average coupon reprices gradually &mdash; each year, the share of debt that rolls over refinances at the market rate. Pick a preset or set the levers yourself.</p>
+    <p class="section-sub">Project debt/GDP through 2031 by setting the four terms of the identity directly. Each year the engine applies <span class="mono">d&prime; = d &times; (1+r)/(1+g) + p</span>. Pick a preset or drag the levers.</p>
     <div class="presets" id="presets"></div>
     <div class="lab">
       <div class="card controls" id="controls"></div>
@@ -425,7 +425,7 @@
       <p><strong>Nominal GDP.</strong> BEA quarterly releases, current-dollar GDP, SAAR percent change. 2026 Q2 = 8.0% (2nd est.), Q1 = 6.1%. Levels chained back from the Q2 2026 level of $32.49T; small differences vs. vintage levels reflect annual revisions.</p>
       <p><strong>Average rate.</strong> Treasury Fiscal Data, &ldquo;Average Interest Rates on U.S. Treasury Securities,&rdquo; total interest-bearing debt, quarter-end month. It moves slowly: the stock reprices only as old paper rolls, which is exactly why issuance strategy matters.</p>
       <p><strong>Primary deficit.</strong> Headline deficit less net interest, from Treasury Monthly Statements and CRFB tallies: FY24 &asymp; $0.95T (3.3% of GDP), FY25 &asymp; 2.7%, FY26 running &asymp; 3.0&ndash;3.1% (10-month deficit $1.8T, gross interest $1.17T). Quarterly values are the fiscal-year rate, an estimate by construction.</p>
-      <p><strong>Scenario engine.</strong> Annual steps from 2026 Q2. Coupon path: r&prime; = r + roll &times; (market &minus; r). Nominal g = real + inflation. Bondholder real return = average coupon minus inflation &mdash; the erosion machine's fuel is exactly that spread when it's negative.</p>
+      <p><strong>Scenario engine.</strong> Annual steps from 2026 Q2, iterating the exact identity d&prime; = d &times; (1+r)/(1+g) + p with all four terms held where you set them. One deliberate simplification: in reality r is not a lever you set but a stock that reprices slowly &mdash; roughly a quarter of the debt rolls over each year at market rates &mdash; so a &ldquo;bond revolt&rdquo; arrives over several years, not instantly. Holding r flat keeps the levers legible at the cost of that nuance.</p>
       <p><strong>Sources.</strong> <a href="https://www.bea.gov/data/gdp/gross-domestic-product">BEA GDP releases</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/average-interest-rates-treasury-securities/">Avg. interest rates</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/">Debt to the Penny</a> &middot; <a href="https://fiscaldata.treasury.gov/datasets/monthly-treasury-statement/">Monthly Treasury Statement</a> &middot; <a href="https://www.crfb.org/">CRFB</a></p>
     </div>
   </section>
@@ -703,42 +703,38 @@
 
   // ---------- scenario lab ----------
   const PRESETS = [
-    { name: "Current path", desc: "Inflation-led nominal growth; the twist holds the curve.", real: 1.8, infl: 5.0, mkt: 4.2, prim: 3.0, roll: 25 },
-    { name: "AI boom + repression", desc: "The thesis: productivity g, captive bid pins r, growth lifts revenue.", real: 3.5, infl: 3.0, mkt: 3.5, prim: 2.0, roll: 25 },
-    { name: "Bond revolt", desc: "The cap breaks: term premium reprices the roll at 6.5%.", real: 1.5, infl: 4.5, mkt: 6.5, prim: 3.5, roll: 30 },
-    { name: "Productivity miracle", desc: "AI shows up in real GDP; inflation normalizes on its own.", real: 4.5, infl: 2.0, mkt: 3.8, prim: 1.5, roll: 25 },
-    { name: "Recession", desc: "The boom busts: growth stalls, automatic stabilizers blow out p.", real: -1.0, infl: 1.5, mkt: 3.0, prim: 5.5, roll: 25 },
+    { name: "Current path", desc: "Today's TTM values, held for five years.", g: 6.7, r: 3.4, d: 97.5, p: 3.0 },
+    { name: "Repression works", desc: "The thesis: growth stays hot, r stays pinned, growth lifts revenue.", g: 6.5, r: 3.5, d: 97.5, p: 2.0 },
+    { name: "Bond revolt", desc: "The cap breaks: the blended coupon grinds up toward market.", g: 5.5, r: 5.5, d: 97.5, p: 3.5 },
+    { name: "Recession", desc: "Nominal growth stalls; automatic stabilizers blow out p.", g: 1.5, r: 3.3, d: 97.5, p: 5.5 },
   ];
   const CTLS = [
-    { key: "real", label: "Real GDP growth", min: -2, max: 6, step: 0.1, unit: "%/yr", hint: "The productivity bet. 2024–2026 actual: −0.5% to 4.4%." },
-    { key: "infl", label: "Inflation", min: 0, max: 8, step: 0.1, unit: "%/yr", hint: "Economy-wide prices (GDP deflator), not CPI — it's what reconciles real to nominal GDP. Q2 2026 ran ~6.4%." },
-    { key: "mkt", label: "Market rate on new issuance", min: 2, max: 8, step: 0.1, unit: "%", hint: "What the roll refinances at. The repression lever." },
-    { key: "prim", label: "Primary deficit", min: -1, max: 6, step: 0.1, unit: "% GDP", hint: "Ex-interest. FY26 running ~3.1%." },
-    { key: "roll", label: "Stock rolling over per year", min: 10, max: 40, step: 1, unit: "%", hint: "How fast the average coupon reprices to market." },
+    { key: "g", label: "Nominal GDP growth g", min: 0, max: 10, step: 0.1, unit: "%/yr", hint: "Real growth + inflation, current dollars. TTM actual: 6.7%. Q2 2026 alone: 8.0%." },
+    { key: "r", label: "Avg coupon r", min: 2, max: 7, step: 0.1, unit: "%", hint: "Blended rate on the whole stock, held flat here. Today: 3.35%, creeping up as old paper rolls at market rates." },
+    { key: "d", label: "Starting debt ratio d", min: 80, max: 130, step: 0.5, unit: "% GDP", hint: "Debt held by the public. Today's actual: 97.5%. The gearing — it amplifies whichever side is winning." },
+    { key: "p", label: "Primary deficit p", min: -1, max: 6, step: 0.1, unit: "% GDP", hint: "Deficit excluding interest. FY26 running ~3.1%." },
   ];
   const state = { ...PRESETS[0] };
   let activePreset = 0;
 
   const controlsEl = document.getElementById("controls");
-  controlsEl.innerHTML = CTLS.map((c, i) =>
+  controlsEl.innerHTML = CTLS.map(c =>
     '<div class="ctl"><label for="sl-' + c.key + '">' + c.label +
     ' <span class="val" id="v-' + c.key + '"></span></label>' +
     '<input class="slider" type="range" id="sl-' + c.key + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" aria-label="' + c.label + '">' +
-    '<div class="hint">' + c.hint + "</div></div>" +
-    (i === 1 ? '<div class="derived" id="derivedG"></div>' : "")).join("");
+    '<div class="hint">' + c.hint + "</div></div>").join("") +
+    '<div class="derived" id="derivedG"></div>';
 
   const presetsEl = document.getElementById("presets");
   presetsEl.innerHTML = PRESETS.map((p, i) =>
     '<button class="preset" type="button" data-i="' + i + '">' + p.name + "</button>").join("");
 
   function project(s) {
-    let r = TTM.r, d = Q[7].ratio / 100;
-    const g = s.real + s.infl;
-    const path = [{ year: 2026.5, ratio: d * 100, r }];
+    let d = s.d / 100;
+    const path = [{ year: 2026.5, ratio: d * 100, r: s.r }];
     for (let y = 1; y <= 5; y++) {
-      r = r + (s.roll / 100) * (s.mkt - r);
-      d = d * (1 + r / 100) / (1 + g / 100) + s.prim / 100;
-      path.push({ year: 2026.5 + y, ratio: d * 100, r });
+      d = d * (1 + s.r / 100) / (1 + s.g / 100) + s.p / 100;
+      path.push({ year: 2026.5 + y, ratio: d * 100, r: s.r });
     }
     return path;
   }
@@ -749,9 +745,10 @@
       document.getElementById("v-" + c.key).textContent = fmt(state[c.key], c.step < 1 ? 1 : 0) + " " + c.unit;
     });
     document.querySelectorAll(".preset").forEach((b, i) => b.classList.toggle("active", i === activePreset));
+    const drift1 = (state.r - state.g) * (state.d / 100) / (1 + state.g / 100) + state.p;
     document.getElementById("derivedG").innerHTML =
-      "&rarr; Nominal GDP growth <strong>g</strong> = " + fmt(state.real) + " real + " + fmt(state.infl) +
-      ' inflation = <span class="mono">' + fmt(state.real + state.infl) + "%/yr</span>";
+      '&Delta;d = (' + fmt(state.r) + " &minus; " + fmt(state.g) + ") &times; " + fmt(state.d / 100, 2) +
+      " + " + fmt(state.p) + ' = <span class="mono">' + fmtS(drift1) + " pts/yr</span>";
     document.getElementById("scenarioSub").textContent = activePreset >= 0
       ? PRESETS[activePreset].name + " — " + PRESETS[activePreset].desc
       : "Custom scenario.";
@@ -759,19 +756,18 @@
     const path = project(state);
     const end = path[path.length - 1];
     const drift = (end.ratio - path[0].ratio) / 5;
-    const realRet = (path.reduce((s, p) => s + p.r, 0) / path.length) - state.infl;
-    const cumLoss = (Math.pow(1 + realRet / 100, 5) - 1) * 100;
+    const bkP = (state.g - state.r) * (state.d / 100);
 
     const oc = document.getElementById("outcomes");
     oc.innerHTML =
       '<div class="outcome"><div class="o-label">Debt/GDP, mid-2031</div><div class="o-value mono" style="color:' +
       (end.ratio <= path[0].ratio ? "var(--good-ink)" : "var(--bad-ink)") + '">' + fmt(end.ratio) + "%</div>" +
-      '<div class="o-sub">from ' + fmt(path[0].ratio) + "% today</div></div>" +
+      '<div class="o-sub">from ' + fmt(path[0].ratio) + "% at the start</div></div>" +
       '<div class="outcome"><div class="o-label">Avg drift</div><div class="o-value mono">' + fmtS(drift) + '</div>' +
       '<div class="o-sub">pts of GDP per year</div></div>' +
-      '<div class="outcome"><div class="o-label">Bondholder real return</div><div class="o-value mono" style="color:' +
-      (realRet < 0 ? "var(--good-ink)" : "var(--bad-ink)") + '">' + fmtS(realRet) + "%/yr</div>" +
-      '<div class="o-sub">' + (realRet < 0 ? fmt(cumLoss) + "% real loss over 5 yrs — the stealth tax" : "creditors keep pace — no stealth tax") + "</div></div>";
+      '<div class="outcome"><div class="o-label">Breakeven p</div><div class="o-value mono">' + fmt(bkP) + "%</div>" +
+      '<div class="o-sub">' + (state.p <= bkP ? "your p of " + fmt(state.p) + "% is under it — eroding" :
+        "your p of " + fmt(state.p) + "% exceeds it — accreting") + "</div></div>";
 
     drawForecast(path);
   }
