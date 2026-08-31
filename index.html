@@ -250,6 +250,11 @@
   .ctl label .val { font-family: "IBM Plex Mono", Consolas, monospace; color: var(--accent-ink); }
   .ctl .hint { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .slider { width: 100%; accent-color: var(--accent); }
+  .derived {
+    background: var(--surface-2); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 9px 13px; font-size: 12.5px; color: var(--ink-2);
+  }
+  .derived .mono { color: var(--accent-ink); font-weight: 600; }
 
   .outcomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
   @media (max-width: 640px) { .outcomes { grid-template-columns: 1fr; } }
@@ -706,7 +711,7 @@
   ];
   const CTLS = [
     { key: "real", label: "Real GDP growth", min: -2, max: 6, step: 0.1, unit: "%/yr", hint: "The productivity bet. 2024–2026 actual: −0.5% to 4.4%." },
-    { key: "infl", label: "Inflation (GDP deflator)", min: 0, max: 8, step: 0.1, unit: "%/yr", hint: "Q2 2026 ran ~6.4%. Nominal g = real + inflation." },
+    { key: "infl", label: "Inflation", min: 0, max: 8, step: 0.1, unit: "%/yr", hint: "Economy-wide prices (GDP deflator), not CPI — it's what reconciles real to nominal GDP. Q2 2026 ran ~6.4%." },
     { key: "mkt", label: "Market rate on new issuance", min: 2, max: 8, step: 0.1, unit: "%", hint: "What the roll refinances at. The repression lever." },
     { key: "prim", label: "Primary deficit", min: -1, max: 6, step: 0.1, unit: "% GDP", hint: "Ex-interest. FY26 running ~3.1%." },
     { key: "roll", label: "Stock rolling over per year", min: 10, max: 40, step: 1, unit: "%", hint: "How fast the average coupon reprices to market." },
@@ -715,11 +720,12 @@
   let activePreset = 0;
 
   const controlsEl = document.getElementById("controls");
-  controlsEl.innerHTML = CTLS.map(c =>
+  controlsEl.innerHTML = CTLS.map((c, i) =>
     '<div class="ctl"><label for="sl-' + c.key + '">' + c.label +
     ' <span class="val" id="v-' + c.key + '"></span></label>' +
     '<input class="slider" type="range" id="sl-' + c.key + '" min="' + c.min + '" max="' + c.max + '" step="' + c.step + '" aria-label="' + c.label + '">' +
-    '<div class="hint">' + c.hint + "</div></div>").join("");
+    '<div class="hint">' + c.hint + "</div></div>" +
+    (i === 1 ? '<div class="derived" id="derivedG"></div>' : "")).join("");
 
   const presetsEl = document.getElementById("presets");
   presetsEl.innerHTML = PRESETS.map((p, i) =>
@@ -743,6 +749,9 @@
       document.getElementById("v-" + c.key).textContent = fmt(state[c.key], c.step < 1 ? 1 : 0) + " " + c.unit;
     });
     document.querySelectorAll(".preset").forEach((b, i) => b.classList.toggle("active", i === activePreset));
+    document.getElementById("derivedG").innerHTML =
+      "&rarr; Nominal GDP growth <strong>g</strong> = " + fmt(state.real) + " real + " + fmt(state.infl) +
+      ' inflation = <span class="mono">' + fmt(state.real + state.infl) + "%/yr</span>";
     document.getElementById("scenarioSub").textContent = activePreset >= 0
       ? PRESETS[activePreset].name + " — " + PRESETS[activePreset].desc
       : "Custom scenario.";
